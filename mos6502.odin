@@ -20,9 +20,9 @@ MOS6502 :: struct {
 	a, x, y, sp: u8,
 	p: Status_Flags,
 	pc: u16,
-	ir: Instruction,
 	cycle: int,
 	addr: u16,
+	ir: proc(^MOS6502, ^Bus)
 }
 
 init :: proc(cpu: ^MOS6502) -> Bus {
@@ -40,8 +40,12 @@ fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
 
 tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     if .RUN not_in bus.ctrl do return
+    defer cpu.cycle += 1
 
-    if RESET_ACTIVE do reset(cpu, bus)
+    if RESET_ACTIVE {
+        reset(cpu, bus)
+        return
+    }
 
     if .SYNC in bus.ctrl {
         cpu.cycle = 0
@@ -50,11 +54,10 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 
 	if cpu.ir == nil {
-		fmt.panicf("unhandled opcode: $%2X", cpu.ir)
+		fmt.panicf("unhandled opcode: $%2X", bus.data)
 	}
 
 	cpu->ir(bus)
-	cpu.cycle += 1
 }
 
 set_nz :: proc(cpu: ^MOS6502, val: u8) {
@@ -120,6 +123,22 @@ lda_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $B9
+lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2:
+        cpu.addr |= u16(bus.data) << 8
+        al := u8(cpu.addr) + cpu.y
+        ah := u8(cpu.addr >> 8)
+        bus.addr = u16(ah << 8) | u16(al)
+        if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
+    case 3: bus.addr = cpu.addr + u16(cpu.y) // fix target addr if page was crossed
+    case 4: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
+    }
+}
+
 // $BD
 lda_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -144,15 +163,14 @@ nop :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
-Instruction :: #type proc(^MOS6502, ^Bus)
-OP: [256]Instruction
-
+OP: [256]proc(^MOS6502, ^Bus)
 @(init)
 init_instruction_table :: proc() {
     OP[0xA5] = lda_zp
     OP[0xA9] = lda_imm
     OP[0xAD] = lda_abs
     OP[0xB5] = lda_zpx
+    OP[0xB9] = lda_absy
     OP[0xBD] = lda_absx
     OP[0xEA] = nop
 }
