@@ -54,7 +54,7 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 
 	if cpu.ir == nil {
-		fmt.panicf("unhandled opcode: $%2X", bus.data)
+		fmt.panicf("unhandled opcode: $%2X at $%4X", bus.data, bus.addr)
 	}
 
 	cpu->ir(bus)
@@ -132,7 +132,7 @@ lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
         cpu.addr |= u16(bus.data) << 8
         al := u8(cpu.addr) + cpu.y
         ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah << 8) | u16(al)
+        bus.addr = u16(ah) << 8 | u16(al)
         if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
     case 3: bus.addr = cpu.addr + u16(cpu.y) // fix target addr if page was crossed
     case 4: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
@@ -148,7 +148,7 @@ lda_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
         cpu.addr |= u16(bus.data) << 8
         al := u8(cpu.addr) + cpu.x
         ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah << 8) | u16(al)
+        bus.addr = u16(ah) << 8 | u16(al)
         if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
     case 3: bus.addr = cpu.addr + u16(cpu.x) // fix target addr if page was crossed
     case 4: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
