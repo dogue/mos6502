@@ -3,7 +3,7 @@ package mos6502
 import "core:fmt"
 
 RESET_VECTOR :: 0xFFFC
-RESET_ACTIVE: bool
+// RESET_ACTIVE: bool
 
 Status_Flag :: enum {
     Carry,
@@ -22,11 +22,13 @@ MOS6502 :: struct {
 	pc: u16,
 	cycle: int,
 	addr: u16,
-	ir: proc(^MOS6502, ^Bus)
+	ir: proc(^MOS6502, ^Bus),
+	in_reset: bool,
 }
 
 init :: proc(cpu: ^MOS6502) -> Bus {
-    RESET_ACTIVE = true
+    // RESET_ACTIVE = true
+    cpu.in_reset = true
     return Bus {
         ctrl = {.RW, .RUN}
     }
@@ -42,7 +44,7 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     if .RUN not_in bus.ctrl do return
     defer cpu.cycle += 1
 
-    if RESET_ACTIVE {
+    if cpu.in_reset {
         reset(cpu, bus)
         return
     }
@@ -82,7 +84,7 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: bus.addr = RESET_VECTOR; cpu.sp -= 1
     case 4: cpu.pc = u16(bus.data); bus.addr += 1
     case 5: cpu.pc |= u16(bus.data) << 8
-    case 6: RESET_ACTIVE = false; fetch(cpu, bus)
+    case 6: cpu.in_reset = false; fetch(cpu, bus)
     }
 }
 
