@@ -48,6 +48,131 @@ _load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     }
 }
 
+_store_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data); bus.data = reg; bus.ctrl -= {.RW}
+    case 2: fetch(cpu, bus)
+    }
+}
+
+_store_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case 2: addr := u8(bus.addr) + offset; bus.addr = u16(addr); bus.data = reg; bus.ctrl -= {.RW}
+    case 3: fetch(cpu, bus)
+    }
+}
+
+_store_reg_abs :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1;
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr; bus.data = reg; bus.ctrl -= {.RW}
+    case 3: fetch(cpu, bus)
+    }
+}
+
+// $18
+clc :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: cpu.p -= {.Carry}
+    case 1: fetch(cpu, bus)
+    }
+}
+
+// $38
+sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: cpu.p += {.Carry}
+    case 1: fetch(cpu, bus)
+    }
+}
+
+// $58
+cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: cpu.p -= {.Interrupt_Disable}
+    case 1: fetch(cpu, bus)
+    }
+}
+
+// $78
+sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: cpu.p += {.Interrupt_Disable}
+    case 1: fetch(cpu, bus)
+    }
+}
+
+// $84
+sty_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp(cpu, bus, cpu.y)
+}
+
+// $85
+sta_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp(cpu, bus, cpu.a)
+}
+
+// $86
+stx_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp(cpu, bus, cpu.x)
+}
+
+// $8C
+sty_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_abs(cpu, bus, cpu.y)
+}
+
+// $8D
+sta_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_abs(cpu, bus, cpu.a)
+}
+
+// $8E
+stx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_abs(cpu, bus, cpu.x)
+}
+
+// $94
+sty_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp_offset(cpu, bus, cpu.y, cpu.x)
+}
+
+// $95
+sta_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp_offset(cpu, bus, cpu.a, cpu.x)
+}
+
+// $96
+stx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _store_reg_zp_offset(cpu, bus, cpu.x, cpu.y)
+}
+
+// $99
+sta_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr + u16(cpu.y)
+    case 3: bus.data = cpu.a; bus.ctrl -= {.RW}
+    case 4: fetch(cpu, bus)
+    }
+}
+
+// $9D
+sta_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr + u16(cpu.x)
+    case 3: bus.data = cpu.a; bus.ctrl -= {.RW}
+    case 4: fetch(cpu, bus)
+    }
+}
+
 // $A0
 ldy_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_imm(cpu, bus, &cpu.y)
@@ -59,7 +184,7 @@ lda_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
     case 1: bus.addr = u16(bus.data)
     case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
-    case 3: cpu.addr = u16(bus.data); bus.addr += 1
+    case 3: cpu.addr = u16(bus.data); bus.addr = (bus.addr + 1) & 0x00FF
     case 4: bus.addr = u16(bus.data) << 8 | cpu.addr
     case 5: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
     }

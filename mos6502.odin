@@ -90,13 +90,38 @@ Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
 OP: [256]Instruction
 @(init)
 init_instruction_table :: proc() {
+    OP[0x18] = clc
+    OP[0x38] = sec
+    OP[0x58] = cli
+    OP[0x78] = sei
+    OP[0x84] = sty_zp
+    OP[0x85] = sta_zp
+    OP[0x86] = stx_zp
+    OP[0x8C] = sty_abs
+    OP[0x8D] = sta_abs
+    OP[0x8E] = stx_abs
+    OP[0x94] = sty_zpx
+    OP[0x95] = sta_zpx
+    OP[0x96] = stx_zpy
+    OP[0x99] = sta_absy
+    OP[0x9D] = sta_absx
+    OP[0xA0] = ldy_imm
     OP[0xA1] = lda_indx
+    OP[0xA2] = ldx_imm
+    OP[0xA4] = ldy_zp
     OP[0xA5] = lda_zp
+    OP[0xA6] = ldx_zp
     OP[0xA9] = lda_imm
+    OP[0xAC] = ldy_abs
     OP[0xAD] = lda_abs
+    OP[0xAE] = ldx_abs
     OP[0xB1] = lda_indy
+    OP[0xB4] = ldy_zpx
     OP[0xB5] = lda_zpx
+    OP[0xB6] = ldx_zpy
     OP[0xB9] = lda_absy
+    OP[0xBC] = ldy_absx
     OP[0xBD] = lda_absx
+    OP[0xBE] = ldx_absy
     OP[0xEA] = nop
 }
