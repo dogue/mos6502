@@ -38,10 +38,6 @@ fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.ctrl += {.SYNC, .RW}
 }
 
-foo :: proc() -> int {
-    return 5
-}
-
 tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     if .RUN not_in bus.ctrl do return
     defer cpu.cycle += 1
@@ -89,8 +85,6 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 6: cpu.in_reset = false; fetch(cpu, bus)
     }
 }
-
-
 
 Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
 OP: [256]Instruction
