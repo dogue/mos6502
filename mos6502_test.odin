@@ -156,3 +156,45 @@ test_lda_absy_cross :: proc(t: ^testing.T) {
 
     testing.expect_value(t, cpu.a, 0x42)
 }
+
+@(test)
+test_lda_indx :: proc(t: ^testing.T) {
+    cpu: MOS6502
+    bus := init(&cpu)
+    mem: [0x10000]u8
+    mem[0] = 0xA1
+    mem[1] = 0x67
+    cpu.x = 2
+    mem[0x69] = 0x37
+    mem[0x6A] = 0x13
+    mem[0x1337] = 0x42
+    for _ in 0..<7+6 {
+        tick(&cpu, &bus)
+        if .RW in bus.ctrl {
+            bus.data = mem[bus.addr]
+        }
+    }
+
+    testing.expect_value(t, cpu.a, 0x42)
+}
+
+@(test)
+test_lda_indy :: proc(t: ^testing.T) {
+    cpu: MOS6502
+    bus := init(&cpu)
+    mem: [0x10000]u8
+    mem[0] = 0xB1
+    mem[1] = 0x69
+    mem[0x69] = 0x35
+    mem[0x6A] = 0x13
+    mem[0x1337] = 0x42
+    cpu.y = 2
+    for _ in 0..<7+5 {
+        tick(&cpu, &bus)
+        if .RW in bus.ctrl {
+            bus.data = mem[bus.addr]
+        }
+    }
+
+    testing.expect_value(t, cpu.a, 0x42)
+}

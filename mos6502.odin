@@ -3,7 +3,6 @@ package mos6502
 import "core:fmt"
 
 RESET_VECTOR :: 0xFFFC
-// RESET_ACTIVE: bool
 
 Status_Flag :: enum {
     Carry,
@@ -22,12 +21,11 @@ MOS6502 :: struct {
 	pc: u16,
 	cycle: int,
 	addr: u16,
-	ir: proc(^MOS6502, ^Bus),
+	ir: Instruction,
 	in_reset: bool,
 }
 
 init :: proc(cpu: ^MOS6502) -> Bus {
-    // RESET_ACTIVE = true
     cpu.in_reset = true
     return Bus {
         ctrl = {.RW, .RUN}
@@ -38,6 +36,10 @@ fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.addr = cpu.pc
     cpu.pc += 1
     bus.ctrl += {.SYNC, .RW}
+}
+
+foo :: proc() -> int {
+    return 5
 }
 
 tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
@@ -88,89 +90,17 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
-// $A5
-lda_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = 0 | u16(bus.data)
-    case 2: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
 
-// $A9
-lda_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
 
-// $AD
-lda_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr
-    case 3: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
-
-// $B5
-lda_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
-    case 3: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
-
-// $B9
-lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2:
-        cpu.addr |= u16(bus.data) << 8
-        al := u8(cpu.addr) + cpu.y
-        ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah) << 8 | u16(al)
-        if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
-    case 3: bus.addr = cpu.addr + u16(cpu.y) // fix target addr if page was crossed
-    case 4: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
-
-// $BD
-lda_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2:
-        cpu.addr |= u16(bus.data) << 8
-        al := u8(cpu.addr) + cpu.x
-        ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah) << 8 | u16(al)
-        if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
-    case 3: bus.addr = cpu.addr + u16(cpu.x) // fix target addr if page was crossed
-    case 4: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
-    }
-}
-
-// $EA
-nop :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: fetch(cpu, bus)
-    }
-}
-
-OP: [256]proc(^MOS6502, ^Bus)
+Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
+OP: [256]Instruction
 @(init)
 init_instruction_table :: proc() {
+    OP[0xA1] = lda_indx
     OP[0xA5] = lda_zp
     OP[0xA9] = lda_imm
     OP[0xAD] = lda_abs
+    OP[0xB1] = lda_indy
     OP[0xB5] = lda_zpx
     OP[0xB9] = lda_absy
     OP[0xBD] = lda_absx
