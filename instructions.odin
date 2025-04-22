@@ -2,10 +2,12 @@ package mos6502
 
 import "core:fmt"
 
+// panic helper for addressing mode helpers called outside their valid cycle window
 _invalid_cycle :: proc(cpu: ^MOS6502, mode: string) {
     fmt.panicf("invalid cycle %d in %s at PC=$%4X", cpu.cycle, mode, cpu.pc)
 }
 
+// performs the first 2 cycles for zero page addressing
 _addr_mode_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -14,6 +16,7 @@ _addr_mode_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// performs the first 3 cycles for indexed zero page addressing
 _addr_mode_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) {
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -23,6 +26,7 @@ _addr_mode_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) {
     }
 }
 
+// performs the first 3 cycles for absolute addressing
 _addr_mode_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -32,6 +36,8 @@ _addr_mode_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// performs the first 3 cycles for indexed absolute addressing
+// returns true if the page boundary was crossed during the final cycle
 _addr_mode_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) -> (page_crossed: bool){
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -49,6 +55,7 @@ _addr_mode_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) -> (page_crossed: 
     return page_crossed
 }
 
+// loads a register with an immediate value
 _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -56,6 +63,7 @@ _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     }
 }
 
+// loads a register from a zero page address
 _load_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
     case 0: _addr_mode_zp(cpu, bus)
@@ -64,7 +72,8 @@ _load_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     }
 }
 
-_load_reg_zp_idy :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
+// loads a register from an indexed zero page address
+_load_reg_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
     case 0: _addr_mode_zp_idx(cpu, bus, offset)
     case 1: _addr_mode_zp_idx(cpu, bus, offset)
@@ -73,6 +82,7 @@ _load_reg_zp_idy :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     }
 }
 
+// loads a register from an absolute address
 _load_reg_abs :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
     case 0: _addr_mode_abs(cpu, bus)
@@ -82,6 +92,7 @@ _load_reg_abs :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     }
 }
 
+// loads a register from an indexed absolute address
 _load_reg_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
     case 0: _addr_mode_abs_idx(cpu, bus, offset)
@@ -92,6 +103,7 @@ _load_reg_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     }
 }
 
+// stores a register to a zero page address
 _store_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     switch cpu.cycle {
     case 0: _addr_mode_zp(cpu, bus)
@@ -100,6 +112,7 @@ _store_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     }
 }
 
+// stores a register to an indexed zero page address
 _store_reg_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     switch cpu.cycle {
     case 0: _addr_mode_zp_idx(cpu, bus, offset)
@@ -109,11 +122,12 @@ _store_reg_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     }
 }
 
+// stores a register to an absolute address
 _store_reg_abs :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1;
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr; bus.data = reg; bus.ctrl -= {.RW}
+    case 0: _addr_mode_abs(cpu, bus)
+    case 1: _addr_mode_abs(cpu, bus)
+    case 2: _addr_mode_abs(cpu, bus); bus.data = reg; bus.ctrl -= {.RW}
     case 3: fetch(cpu, bus)
     }
 }
@@ -370,17 +384,17 @@ lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 
 // $B4
 ldy_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_idy(cpu, bus, &cpu.y, cpu.x)
+    _load_reg_zp_idx(cpu, bus, &cpu.y, cpu.x)
 }
 
 // $B5
 lda_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_idy(cpu, bus, &cpu.a, cpu.x)
+    _load_reg_zp_idx(cpu, bus, &cpu.a, cpu.x)
 }
 
 // $B6
 ldx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_idy(cpu, bus, &cpu.x, cpu.y)
+    _load_reg_zp_idx(cpu, bus, &cpu.x, cpu.y)
 }
 
 // $B9
