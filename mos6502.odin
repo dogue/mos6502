@@ -86,12 +86,23 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+set_flag :: proc(cpu: ^MOS6502, flag: Status_Flag, cond: bool) {
+    if cond {
+        cpu.p += {flag}
+    } else {
+        cpu.p -= {flag}
+    }
+}
+
 Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
 OP: [256]Instruction
 @(init)
 init_instruction_table :: proc() {
     OP[0x18] = clc
     OP[0x38] = sec
+    OP[0x46] = lsr_zp
+    OP[0x4A] = lsr_acc
+    OP[0x56] = lsr_zpx
     OP[0x58] = cli
     OP[0x78] = sei
     OP[0x81] = sta_indx

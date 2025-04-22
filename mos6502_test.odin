@@ -202,3 +202,64 @@ test_store_reg_zp :: proc(t: ^testing.T) {
 
     testing.expect_value(t, mem[0x69], 0x42)
 }
+
+@(test)
+test_lsr_acc :: proc(t: ^testing.T) {
+    cpu: MOS6502
+    bus := init(&cpu)
+    mem: [0x10000]u8
+    mem[0] = 0x4A
+    cpu.a = 0b10011001
+    for _ in 0..<7+2 {
+        tick(&cpu, &bus)
+        if .RW in bus.ctrl {
+            bus.data = mem[bus.addr]
+        }
+    }
+
+    testing.expect_value(t, cpu.a, 0b01001100)
+    testing.expect(t, .Carry in cpu.p)
+}
+
+@(test)
+test_lsr_zp :: proc(t: ^testing.T) {
+    cpu: MOS6502
+    bus := init(&cpu)
+    mem: [0x10000]u8
+    mem[0] = 0x46
+    mem[1] = 0x69
+    mem[0x69] = 0b10011001
+    for _ in 0..<7+5 {
+        tick(&cpu, &bus)
+        if .RW in bus.ctrl {
+            bus.data = mem[bus.addr]
+        } else {
+            mem[bus.addr] = bus.data
+        }
+    }
+
+    testing.expect_value(t, mem[0x69], 0b01001100)
+    testing.expect(t, .Carry in cpu.p)
+}
+
+@(test)
+test_lsr_zpx :: proc(t: ^testing.T) {
+    cpu: MOS6502
+    bus := init(&cpu)
+    mem: [0x10000]u8
+    mem[0] = 0x56
+    mem[1] = 0x63
+    cpu.x = 6
+    mem[0x69] = 0b10011001
+    for _ in 0..<7+5 {
+        tick(&cpu, &bus)
+        if .RW in bus.ctrl {
+            bus.data = mem[bus.addr]
+        } else {
+            mem[bus.addr] = bus.data
+        }
+    }
+
+    testing.expect_value(t, mem[0x69], 0b01001100)
+    testing.expect(t, .Carry in cpu.p)
+}

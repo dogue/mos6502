@@ -1,5 +1,54 @@
 package mos6502
 
+import "core:fmt"
+
+_invalid_cycle :: proc(cpu: ^MOS6502, mode: string) {
+    fmt.panicf("invalid cycle %d in %s at PC=$%4X", cpu.cycle, mode, cpu.pc)
+}
+
+_addr_mode_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case: _invalid_cycle(cpu, "_addr_mode_zp")
+    }
+}
+
+_addr_mode_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: cpu.addr = u16(bus.data); bus.addr = cpu.addr
+    case 2: addr := u8(cpu.addr) + idx; bus.addr = u16(addr)
+    case: _invalid_cycle(cpu, "_addr_mode_zp_idx")
+    }
+}
+
+_addr_mode_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr
+    case: _invalid_cycle(cpu, "_addr_mode_abs")
+    }
+}
+
+_addr_mode_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) -> (page_crossed: bool){
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2:
+        cpu.addr |= u16(bus.data) << 8
+        base_lo := u8(cpu.addr)
+        al := base_lo + idx
+        ah := u8(cpu.addr >> 8)
+        bus.addr = u16(ah) << 8 | u16(al)
+        if al < base_lo do page_crossed = true
+    case: _invalid_cycle(cpu, "_addr_mode_abs_idx")
+    }
+
+    return page_crossed
+}
+
 _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
     case 0: bus.addr = cpu.pc; cpu.pc += 1
@@ -9,40 +58,35 @@ _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
 
 _load_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = 0 | u16(bus.data)
+    case 0: _addr_mode_zp(cpu, bus)
+    case 1: _addr_mode_zp(cpu, bus)
     case 2: reg^ = bus.data; set_nz(cpu, reg^); fetch(cpu, bus)
     }
 }
 
-_load_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
+_load_reg_zp_idy :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: addr := u8(bus.addr) + offset; bus.addr = u16(addr)
+    case 0: _addr_mode_zp_idx(cpu, bus, offset)
+    case 1: _addr_mode_zp_idx(cpu, bus, offset)
+    case 2: _addr_mode_zp_idx(cpu, bus, offset)
     case 3: reg^ = bus.data; set_nz(cpu, reg^); fetch(cpu, bus)
     }
 }
 
 _load_reg_abs :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr
+    case 0: _addr_mode_abs(cpu, bus)
+    case 1: _addr_mode_abs(cpu, bus)
+    case 2: _addr_mode_abs(cpu, bus)
     case 3: reg^ = bus.data; set_nz(cpu, reg^); fetch(cpu, bus)
     }
 }
 
-_load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
+_load_reg_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2:
-        cpu.addr |= u16(bus.data) << 8
-        al := u8(cpu.addr) + offset
-        ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah) << 8 | u16(al)
-        if al >= u8(cpu.addr) do cpu.cycle += 1 // skip cycle 3 if page not crossed
+    case 0: _addr_mode_abs_idx(cpu, bus, offset)
+    case 1: _addr_mode_abs_idx(cpu, bus, offset)
+    case 2: page_crossed := _addr_mode_abs_idx(cpu, bus, offset); if !page_crossed do cpu.cycle += 1
     case 3: bus.addr = cpu.addr + u16(offset) // fix target addr if page was crossed
     case 4: reg^ = bus.data; set_nz(cpu, reg^); fetch(cpu, bus)
     }
@@ -50,17 +94,17 @@ _load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
 
 _store_reg_zp :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data); bus.data = reg; bus.ctrl -= {.RW}
+    case 0: _addr_mode_zp(cpu, bus)
+    case 1: _addr_mode_zp(cpu, bus); bus.data = reg; bus.ctrl -= {.RW}
     case 2: fetch(cpu, bus)
     }
 }
 
-_store_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
+_store_reg_zp_idx :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: addr := u8(bus.addr) + offset; bus.addr = u16(addr); bus.data = reg; bus.ctrl -= {.RW}
+    case 0: _addr_mode_zp_idx(cpu, bus, offset)
+    case 1: _addr_mode_zp_idx(cpu, bus, offset)
+    case 2: _addr_mode_zp_idx(cpu, bus, offset); bus.data = reg; bus.ctrl -= {.RW}
     case 3: fetch(cpu, bus)
     }
 }
@@ -90,11 +134,51 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $46
+lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case 2:
+        bus.ctrl -= {.RW}
+        set_flag(cpu, .Carry, bus.data & 1 == 1)
+        bus.data >>= 1
+    case 3: set_nz(cpu, bus.data)
+    case 4: fetch(cpu, bus)
+    }
+}
+
 // $4A
 lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0:
+        set_flag(cpu, .Carry, cpu.a & 1 == 1)
+        cpu.a >>= 1
     case 1: set_nz(cpu, cpu.a); fetch(cpu, bus)
+    }
+}
+
+// $4E
+lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
+    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr
+    case 3: bus.ctrl -= {.RW}
+    case 4: set_flag(cpu, .Carry, bus.data & 1 == 1); bus.data >>= 1; set_nz(cpu, bus.data)
+    case 5: fetch(cpu, bus)
+    }
+}
+
+// $56
+lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
+    case 3: bus.ctrl -= {.RW}
+    case 4: set_flag(cpu, .Carry, bus.data & 1 == 1); bus.data >>= 1; set_nz(cpu, bus.data)
+    case 5: fetch(cpu, bus)
     }
 }
 
@@ -175,17 +259,17 @@ sta_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 
 // $94
 sty_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _store_reg_zp_offset(cpu, bus, cpu.y, cpu.x)
+    _store_reg_zp_idx(cpu, bus, cpu.y, cpu.x)
 }
 
 // $95
 sta_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _store_reg_zp_offset(cpu, bus, cpu.a, cpu.x)
+    _store_reg_zp_idx(cpu, bus, cpu.a, cpu.x)
 }
 
 // $96
 stx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _store_reg_zp_offset(cpu, bus, cpu.x, cpu.y)
+    _store_reg_zp_idx(cpu, bus, cpu.x, cpu.y)
 }
 
 // $99
@@ -286,37 +370,37 @@ lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 
 // $B4
 ldy_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_offset(cpu, bus, &cpu.y, cpu.x)
+    _load_reg_zp_idy(cpu, bus, &cpu.y, cpu.x)
 }
 
 // $B5
 lda_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_offset(cpu, bus, &cpu.a, cpu.x)
+    _load_reg_zp_idy(cpu, bus, &cpu.a, cpu.x)
 }
 
 // $B6
 ldx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_zp_offset(cpu, bus, &cpu.x, cpu.y)
+    _load_reg_zp_idy(cpu, bus, &cpu.x, cpu.y)
 }
 
 // $B9
 lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_abs_offset(cpu, bus, &cpu.a, cpu.y)
+    _load_reg_abs_idx(cpu, bus, &cpu.a, cpu.y)
 }
 
 // $BC
 ldy_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_abs_offset(cpu, bus, &cpu.y, cpu.x)
+    _load_reg_abs_idx(cpu, bus, &cpu.y, cpu.x)
 }
 
 // $BD
 lda_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_abs_offset(cpu, bus, &cpu.a, cpu.x)
+    _load_reg_abs_idx(cpu, bus, &cpu.a, cpu.x)
 }
 
 // $BE
 ldx_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _load_reg_abs_offset(cpu, bus, &cpu.x, cpu.y)
+    _load_reg_abs_idx(cpu, bus, &cpu.x, cpu.y)
 }
 
 // $EA
