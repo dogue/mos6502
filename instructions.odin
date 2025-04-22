@@ -55,6 +55,38 @@ _addr_mode_abs_idx :: proc(cpu: ^MOS6502, bus: ^Bus, idx: u8) -> (page_crossed: 
     return page_crossed
 }
 
+// performs the first 5 cycles for indexed indirect `($zp, x)` addressing
+_addr_mode_ind_x :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _addr_mode_zp_idx(cpu, bus, cpu.x)
+    case 1: _addr_mode_zp_idx(cpu, bus, cpu.x)
+    case 2: _addr_mode_zp_idx(cpu, bus, cpu.x)
+    case 3: cpu.addr = u16(bus.data); bus.addr = (bus.addr + 1) & 0x00FF
+    case 4: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr
+    case: _invalid_cycle(cpu, "_addr_mode_ind_x")
+    }
+}
+
+// performs the first 4 cycles for indirect indexed `($zp),y` addressing
+// returns true if the page boundary is crossed during the final cycle
+_addr_mode_ind_y :: proc(cpu: ^MOS6502, bus: ^Bus) -> (page_crossed: bool) {
+    switch cpu.cycle {
+    case 0: _addr_mode_zp(cpu, bus)
+    case 1: _addr_mode_zp(cpu, bus)
+    case 2: cpu.addr = u16(bus.data); bus.addr += 1
+    case 3:
+        cpu.addr |= u16(bus.data) << 8
+        base_lo := u8(cpu.addr)
+        al := base_lo + cpu.y
+        ah := u8(cpu.addr >> 8)
+        bus.addr = u16(ah) << 8 | u16(al)
+        if al < base_lo do page_crossed = true
+    case: _invalid_cycle(cpu, "_addr_mode_ind_y")
+    }
+
+    return page_crossed
+}
+
 // loads a register with an immediate value
 _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
@@ -316,11 +348,7 @@ ldy_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $A1
 lda_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
-    case 3: cpu.addr = u16(bus.data); bus.addr = (bus.addr + 1) & 0x00FF
-    case 4: bus.addr = u16(bus.data) << 8 | cpu.addr
+    case 0..=4: _addr_mode_ind_x(cpu, bus)
     case 5: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
     }
 }
@@ -368,15 +396,10 @@ ldx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $B1
 lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: cpu.addr = u16(bus.data); bus.addr += 1
-    case 3:
-        cpu.addr |= u16(bus.data) << 8;
-        al := u8(cpu.addr) + cpu.y
-        ah := u8(cpu.addr >> 8)
-        bus.addr = u16(ah) << 8 | u16(al)
-        if al >= u8(cpu.addr) do cpu.cycle += 1
+    case 0: _addr_mode_ind_y(cpu, bus)
+    case 1: _addr_mode_ind_y(cpu, bus)
+    case 2: _addr_mode_ind_y(cpu, bus)
+    case 3: page_crossed := _addr_mode_ind_y(cpu, bus); if !page_crossed do cpu.cycle += 1
     case 4: bus.addr = cpu.addr + u16(cpu.y)
     case 5: cpu.a = bus.data; set_nz(cpu, cpu.a); fetch(cpu, bus)
     }
