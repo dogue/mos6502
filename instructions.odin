@@ -151,8 +151,8 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $46
 lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
+    case 0: _addr_mode_zp(cpu, bus)
+    case 1: _addr_mode_zp(cpu, bus)
     case 2:
         bus.ctrl -= {.RW}
         set_flag(cpu, .Carry, bus.data & 1 == 1)
@@ -175,9 +175,9 @@ lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
 // $4E
 lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: bus.addr = u16(bus.data) << 8 | cpu.addr
+    case 0: _addr_mode_abs(cpu, bus)
+    case 1: _addr_mode_abs(cpu, bus)
+    case 2: _addr_mode_abs(cpu, bus)
     case 3: bus.ctrl -= {.RW}
     case 4: set_flag(cpu, .Carry, bus.data & 1 == 1); bus.data >>= 1; set_nz(cpu, bus.data)
     case 5: fetch(cpu, bus)
@@ -187,9 +187,9 @@ lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $56
 lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = u16(bus.data)
-    case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
+    case 0: _addr_mode_zp_idx(cpu, bus, cpu.x)
+    case 1: _addr_mode_zp_idx(cpu, bus, cpu.x)
+    case 2: _addr_mode_zp_idx(cpu, bus, cpu.x)
     case 3: bus.ctrl -= {.RW}
     case 4: set_flag(cpu, .Carry, bus.data & 1 == 1); bus.data >>= 1; set_nz(cpu, bus.data)
     case 5: fetch(cpu, bus)
@@ -289,9 +289,9 @@ stx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $99
 sta_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr + u16(cpu.y)
+    case 0: _addr_mode_abs_idx(cpu, bus, cpu.y)
+    case 1: _addr_mode_abs_idx(cpu, bus, cpu.y)
+    case 2: _addr_mode_abs_idx(cpu, bus, cpu.y)
     case 3: bus.data = cpu.a; bus.ctrl -= {.RW}
     case 4: fetch(cpu, bus)
     }
@@ -300,9 +300,9 @@ sta_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $9D
 sta_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: bus.addr = cpu.pc; cpu.pc += 1
-    case 1: bus.addr = cpu.pc; cpu.pc += 1; cpu.addr = u16(bus.data)
-    case 2: cpu.addr |= u16(bus.data) << 8; bus.addr = cpu.addr + u16(cpu.x)
+    case 0: _addr_mode_abs_idx(cpu, bus, cpu.x)
+    case 1: _addr_mode_abs_idx(cpu, bus, cpu.x)
+    case 2: _addr_mode_abs_idx(cpu, bus, cpu.x)
     case 3: bus.data = cpu.a; bus.ctrl -= {.RW}
     case 4: fetch(cpu, bus)
     }
