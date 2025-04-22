@@ -90,6 +90,14 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $4A
+lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0:
+    case 1: set_nz(cpu, cpu.a); fetch(cpu, bus)
+    }
+}
+
 // $58
 cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -103,6 +111,18 @@ sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: cpu.p += {.Interrupt_Disable}
     case 1: fetch(cpu, bus)
+    }
+}
+
+// $81
+sta_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case 2: addr := u8(bus.addr) + cpu.x; bus.addr = u16(addr)
+    case 3: cpu.addr = u16(bus.data); bus.addr = (bus.addr + 1) & 0x00FF
+    case 4: bus.addr = u16(bus.data) << 8 | cpu.addr; bus.data = cpu.a; bus.ctrl -= {.RW}
+    case 5: fetch(cpu, bus)
     }
 }
 
@@ -134,6 +154,23 @@ sta_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $8E
 stx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_abs(cpu, bus, cpu.x)
+}
+
+// $91
+sta_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: bus.addr = cpu.pc; cpu.pc += 1
+    case 1: bus.addr = u16(bus.data)
+    case 2: cpu.addr = u16(bus.data); bus.addr += 1
+    case 3:
+        cpu.addr |= u16(bus.data) << 8;
+        al := u8(cpu.addr) + cpu.y
+        ah := u8(cpu.addr >> 8)
+        bus.addr = u16(ah) << 8 | u16(al)
+        if al >= u8(cpu.addr) do cpu.cycle += 1
+    case 4: bus.addr = cpu.addr + u16(cpu.y); bus.data = cpu.a; bus.ctrl -= {.RW}
+    case 5: fetch(cpu, bus)
+    }
 }
 
 // $94
