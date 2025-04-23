@@ -61,17 +61,8 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
 }
 
 set_nz :: proc(cpu: ^MOS6502, val: u8) {
-    if val == 0 {
-        cpu.p += {.Zero}
-    } else {
-        cpu.p -= {.Zero}
-    }
-
-    if val & 0x80 != 0 {
-        cpu.p += {.Negative}
-    } else {
-        cpu.p -= {.Negative}
-    }
+    set_flag(cpu, .Zero, val == 0)
+    set_flag(cpu, .Negative, val & 0x80 != 0)
 }
 
 reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
