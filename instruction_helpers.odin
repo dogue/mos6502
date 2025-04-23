@@ -210,3 +210,10 @@ _store_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     case 4: fetch(cpu, bus)
     }
 }
+
+_transfer_reg :: proc(cpu: ^MOS6502, bus: ^Bus, src: u8, dest: ^u8) {
+    switch cpu.cycle {
+    case 0: dest^ = src
+    case 1: fetch(cpu, bus)
+    }
+}

@@ -120,6 +120,11 @@ stx_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_zp(cpu, bus, cpu.x)
 }
 
+// $8A
+txa :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.x, &cpu.a)
+}
+
 // $8C
 sty_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_abs(cpu, bus, cpu.y)
@@ -162,9 +167,19 @@ stx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_zp(cpu, bus, cpu.x, cpu.y)
 }
 
+// $98
+tya :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.y, &cpu.a)
+}
+
 // $99
 sta_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_abs(cpu, bus, cpu.a, cpu.y)
+}
+
+// $9A
+txs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.x, &cpu.sp)
 }
 
 // $9D
@@ -212,9 +227,19 @@ ldx_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_zp(cpu, bus, &cpu.x)
 }
 
+// $A8
+tay :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.a, &cpu.y)
+}
+
 // $A9
 lda_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_imm(cpu, bus, &cpu.a)
+}
+
+// $AA
+tax :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.a, &cpu.x)
 }
 
 // $AC
@@ -267,6 +292,11 @@ ldx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $B9
 lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_abs(cpu, bus, &cpu.a, cpu.y)
+}
+
+// $BA
+tsx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    _transfer_reg(cpu, bus, cpu.sp, &cpu.x)
 }
 
 // $BC
