@@ -1,7 +1,36 @@
 package mos6502
 
 // Instruction set implementation
-// procs prefixed with `_` are helpers defined in `instruction_helpers.odin`
+// procs prefixed with `_` are helpers defined in `*_helpers.odin`
+
+// $01
+ora_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_indx_ptr_lo(cpu, bus)
+    case 3: _fetch_indx_ptr_hi(cpu, bus)
+    case 4: _compute_indx_addr(cpu, bus)
+    case 5:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $05
+ora_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
 
 // $08
 php :: proc(cpu: ^MOS6502, bus: ^Bus) {
@@ -13,12 +42,104 @@ php :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $09
+ora_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $0D
+ora_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus)
+    case 3:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $11
+ora_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_indy_ptr_lo(cpu, bus)
+    case 2: _fetch_indy_ptr_hi(cpu, bus)
+    case 3:
+        page_crossed := _compute_indy_addr(cpu, bus)
+        if !page_crossed do cpu.cycle += 1
+    case 4: _adjust_addr(cpu, bus, cpu.y)
+    case 5:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $15
+ora_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, cpu.x)
+    case 3:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $18
 clc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _fetch(cpu, bus)
     case 1:
         cpu.p.carry = false
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $19
+ora_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2:
+        page_crossed := _fetch_abs_hi(cpu, bus, cpu.y)
+        if !page_crossed do cpu.cycle += 1
+    case 3: _adjust_addr(cpu, bus, cpu.y)
+    case 4:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $1D
+ora_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2:
+        page_crossed := _fetch_abs_hi(cpu, bus, cpu.x)
+        if !page_crossed do cpu.cycle += 1
+    case 3: _adjust_addr(cpu, bus, cpu.x)
+    case 4:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
     }
