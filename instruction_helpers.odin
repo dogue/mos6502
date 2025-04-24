@@ -20,7 +20,7 @@ _load_reg_imm :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
 
 _load_reg_zp :: proc {
     _load_reg_zp_base,
-    _load_reg_zp_offset,
+    _load_reg_zp_indexed,
 }
 
 // loads a register from a zero page address
@@ -37,7 +37,7 @@ _load_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
 }
 
 // loads a register from a zero page address with offset
-_load_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
+_load_reg_zp_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
@@ -52,7 +52,7 @@ _load_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
 
 _load_reg_abs :: proc {
     _load_reg_abs_base,
-    _load_reg_abs_offset,
+    _load_reg_abs_index,
 }
 
 // loads a register from an absolute address
@@ -70,7 +70,7 @@ _load_reg_abs_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
 }
 
 // loads a register from an indexed absolute address
-_load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
+_load_reg_abs_index :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
     case 1: _fetch_abs_lo(cpu, bus)
@@ -88,7 +88,7 @@ _load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
 
 _store_reg_zp :: proc {
     _store_reg_zp_base,
-    _store_reg_zp_offset,
+    _store_reg_zp_indexed,
 }
 
 // stores a register to a zero page address
@@ -104,7 +104,7 @@ _store_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
 }
 
 // stores a register to an indexed zero page address
-_store_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
+_store_reg_zp_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
@@ -118,7 +118,7 @@ _store_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
 
 _store_reg_abs :: proc {
     _store_reg_abs_base,
-    _store_reg_abs_offset,
+    _store_reg_abs_indexed,
 }
 
 // stores a register to an absolute address
@@ -134,7 +134,7 @@ _store_reg_abs_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     }
 }
 
-_store_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
+_store_reg_abs_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
     case 1: _fetch_abs_lo(cpu, bus)

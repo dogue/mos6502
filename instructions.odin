@@ -29,7 +29,7 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
 lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
     case 2:
         cpu.addr = u16(bus.data)
         _set_write(bus)
@@ -80,8 +80,8 @@ lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
-    case 2: _set_zp_addr(cpu, bus, cpu.x)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, cpu.x)
     case 3:
         cpu.addr = u16(bus.data)
         _set_write(bus)
@@ -138,11 +138,11 @@ sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
 sta_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
-    case 2: _fetch_indx_lo(cpu, bus)
-    case 3: _fetch_indx_hi(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_indx_ptr_lo(cpu, bus)
+    case 3: _fetch_indx_ptr_hi(cpu, bus)
     case 4:
-        _set_indx_addr(cpu, bus)
+        _compute_indx_addr(cpu, bus)
         _write(bus, cpu.a)
     case 5: fetch(cpu, bus)
     case: unreachable()
@@ -188,11 +188,11 @@ stx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 sta_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _fetch_indy_lo(cpu, bus)
-    case 2: _fetch_indy_hi(cpu, bus)
-    case 3: _set_indy_addr(cpu, bus)
+    case 1: _fetch_indy_ptr_lo(cpu, bus)
+    case 2: _fetch_indy_ptr_hi(cpu, bus)
+    case 3: _compute_indy_addr(cpu, bus)
     case 4:
-        _fix_addr(cpu, bus, cpu.y)
+        _adjust_addr(cpu, bus, cpu.y)
         _write(bus, cpu.a)
     case 5: fetch(cpu, bus)
     case: unreachable()
@@ -243,10 +243,10 @@ ldy_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
 lda_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
-    case 2: _fetch_indx_lo(cpu, bus)
-    case 3: _fetch_indx_hi(cpu, bus)
-    case 4: _set_indx_addr(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_indx_ptr_lo(cpu, bus)
+    case 3: _fetch_indx_ptr_hi(cpu, bus)
+    case 4: _compute_indx_addr(cpu, bus)
     case 5:
         cpu.a = bus.data
         set_nz(cpu, cpu.a)
@@ -309,12 +309,12 @@ ldx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _fetch_indy_lo(cpu, bus)
-    case 2: _fetch_indy_hi(cpu, bus)
+    case 1: _fetch_indy_ptr_lo(cpu, bus)
+    case 2: _fetch_indy_ptr_hi(cpu, bus)
     case 3:
-        page_crossed := _set_indy_addr(cpu, bus)
+        page_crossed := _compute_indy_addr(cpu, bus)
         if !page_crossed do cpu.cycle += 1
-    case 4: _fix_addr(cpu, bus, cpu.y)
+    case 4: _adjust_addr(cpu, bus, cpu.y)
     case 5:
         cpu.a = bus.data
         set_nz(cpu, cpu.a)
