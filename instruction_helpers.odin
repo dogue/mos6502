@@ -27,7 +27,7 @@ _load_reg_zp :: proc {
 _load_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
     case 2:
         reg^ = bus.data
         set_nz(cpu, reg^)
@@ -40,8 +40,8 @@ _load_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8) {
 _load_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
-    case 2: _set_zp_addr(cpu, bus, offset)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, offset)
     case 3:
         reg^ = bus.data
         set_nz(cpu, reg^)
@@ -77,7 +77,7 @@ _load_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: ^u8, offset: u8) {
     case 2:
         page_crossed := _fetch_abs_hi(cpu, bus, offset)
         if !page_crossed do cpu.cycle += 1 // skip extra cycle if page not crossed
-    case 3: _fix_addr(cpu, bus, offset) // fix target addr if page was crossed
+    case 3: _adjust_addr(cpu, bus, offset) // fix target addr if page was crossed
     case 4:
         reg^ = bus.data
         set_nz(cpu, reg^)
@@ -96,7 +96,7 @@ _store_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
     case 1:
-        _set_zp_addr(cpu, bus)
+        _fetch_zp_addr(cpu, bus)
         _write(bus, reg)
     case 2: fetch(cpu, bus)
     case: unreachable()
@@ -107,9 +107,9 @@ _store_reg_zp_base :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8) {
 _store_reg_zp_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     switch cpu.cycle {
     case 0: _next_pc(cpu, bus)
-    case 1: _set_zp_addr(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
     case 2:
-        _set_zp_addr(cpu, bus, offset)
+        _fetch_zp_addr(cpu, bus, offset)
         _write(bus, reg)
     case 3: fetch(cpu, bus)
     case: unreachable()
@@ -140,7 +140,7 @@ _store_reg_abs_offset :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
     case 1: _fetch_abs_lo(cpu, bus)
     case 2: _fetch_abs_hi(cpu, bus, offset)
     case 3:
-        _fix_addr(cpu, bus, offset)
+        _adjust_addr(cpu, bus, offset)
         _write(bus, reg)
     case 4: fetch(cpu, bus)
     case: unreachable()
