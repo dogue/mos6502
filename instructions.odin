@@ -3,13 +3,36 @@ package mos6502
 // Instruction set implementation
 // procs prefixed with `_` are helpers defined in `instruction_helpers.odin`
 
+// $08
+php :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1: _write_stack(cpu, bus, u8(cpu.p))
+    case 2: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $18
 clc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1:
-        cpu.p -= {.Carry}
-        fetch(cpu, bus)
+        cpu.p.carry = false
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $28
+plp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1: _pull_stack(cpu, bus)
+    case 2: _read_stack(cpu, bus)
+    case 3:
+        cpu.p = Status_Flags(bus.data)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -17,10 +40,10 @@ clc :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $38
 sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1:
-        cpu.p += {.Carry}
-        fetch(cpu, bus)
+        cpu.p.carry = true
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -28,19 +51,19 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $46
 lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2:
         cpu.addr = u16(bus.data)
         _set_write(bus)
     case 3:
         data := u8(cpu.addr)
-        set_flag(cpu, .Carry, data & 1 == 1)
+        cpu.p.carry = data & 1 == 1
         data >>= 1
         set_nz(cpu, data)
         bus.data = data
         _set_write(bus)
-    case 4: fetch(cpu, bus)
+    case 4: _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -48,12 +71,12 @@ lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $4A
 lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1:
-        set_flag(cpu, .Carry, cpu.a & 1 == 1)
+        cpu.p.carry = cpu.a & 1 == 1
         cpu.a >>= 1
         set_nz(cpu, cpu.a)
-        fetch(cpu, bus)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -61,17 +84,17 @@ lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
 // $4E
 lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_abs_lo(cpu, bus)
     case 2: _fetch_abs_hi(cpu, bus)
     case 3:
         cpu.addr = u16(bus.data)
         bus.ctrl -= {.RW}
     case 4:
-        set_flag(cpu, .Carry, cpu.addr & 1 == 1)
+        cpu.p.carry = cpu.addr & 1 == 1
         cpu.addr >>= 1
         set_nz(cpu, u8(cpu.addr))
-    case 5: fetch(cpu, bus)
+    case 5: _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -79,18 +102,18 @@ lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $56
 lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2: _fetch_zp_addr(cpu, bus, cpu.x)
     case 3:
         cpu.addr = u16(bus.data)
         _set_write(bus)
     case 4:
-        set_flag(cpu, .Carry, cpu.addr & 1 == 1)
+        cpu.p.carry = cpu.addr & 1 == 1
         cpu.addr >>= 1
         set_nz(cpu, u8(cpu.addr))
         _write(bus, u8(cpu.addr))
-    case 5: fetch(cpu, bus)
+    case 5: _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -98,10 +121,10 @@ lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $58
 cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1:
-        clear_flag(cpu, .Interrupt_Disable)
-        fetch(cpu, bus)
+        cpu.p.interrupt_disable = false
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -109,16 +132,13 @@ cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $68
 pla :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
-    case 1:
-        _set_sp_addr(cpu, bus)
-        cpu.sp += 1
-    case 2:
-        _set_sp_addr(cpu, bus)
+    case 0: _read(cpu, bus)
+    case 1: _pull_stack(cpu, bus)
+    case 2: _read_stack(cpu, bus)
     case 3:
         cpu.a = bus.data
         set_nz(cpu, cpu.a)
-        fetch(cpu, bus)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -126,25 +146,25 @@ pla :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $78
 sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1:
-        set_flag(cpu, .Interrupt_Disable)
-        fetch(cpu, bus)
+        cpu.p.interrupt_disable = true
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
 
-// $81
+// $81 - STA (zp,X)
 sta_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2: _fetch_indx_ptr_lo(cpu, bus)
     case 3: _fetch_indx_ptr_hi(cpu, bus)
     case 4:
         _compute_indx_addr(cpu, bus)
         _write(bus, cpu.a)
-    case 5: fetch(cpu, bus)
+    case 5: _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -187,14 +207,14 @@ stx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $91
 sta_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_indy_ptr_lo(cpu, bus)
     case 2: _fetch_indy_ptr_hi(cpu, bus)
     case 3: _compute_indy_addr(cpu, bus)
     case 4:
         _adjust_addr(cpu, bus, cpu.y)
         _write(bus, cpu.a)
-    case 5: fetch(cpu, bus)
+    case 5: _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -242,7 +262,7 @@ ldy_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $A1
 lda_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2: _fetch_indx_ptr_lo(cpu, bus)
     case 3: _fetch_indx_ptr_hi(cpu, bus)
@@ -250,7 +270,7 @@ lda_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 5:
         cpu.a = bus.data
         set_nz(cpu, cpu.a)
-        fetch(cpu, bus)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -308,7 +328,7 @@ ldx_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $B1
 lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _next_pc(cpu, bus)
+    case 0: _fetch(cpu, bus)
     case 1: _fetch_indy_ptr_lo(cpu, bus)
     case 2: _fetch_indy_ptr_hi(cpu, bus)
     case 3:
@@ -318,7 +338,7 @@ lda_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 5:
         cpu.a = bus.data
         set_nz(cpu, cpu.a)
-        fetch(cpu, bus)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -366,7 +386,7 @@ ldx_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $EA
 nop :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _dummy_read(cpu, bus)
-    case 1: fetch(cpu, bus)
+    case 0: _read(cpu, bus)
+    case 1: _sync(cpu, bus)
     }
 }

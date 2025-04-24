@@ -4,16 +4,16 @@ import "core:fmt"
 
 RESET_VECTOR :: 0xFFFC
 
-Status_Flag :: enum {
-    Carry,
-    Zero,
-    Interrupt_Disable,
-    Decimal_Mode,
-    Break,
-    Overflow,
-    Negative,
+Status_Flags :: bit_field u8 {
+    carry: bool | 1,
+    zero: bool | 1,
+    interrupt_disable: bool | 1,
+    decimal: bool | 1,
+    brk: bool | 1,
+    unused: bool | 1,
+    overflow: bool | 1,
+    negative: bool | 1,
 }
-Status_Flags :: bit_set[Status_Flag]
 
 MOS6502 :: struct {
 	a, x, y, sp: u8,
@@ -27,15 +27,12 @@ MOS6502 :: struct {
 
 init :: proc(cpu: ^MOS6502) -> Bus {
     cpu.in_reset = true
+    cpu.p.unused = true // always pushed as 1
     return Bus {
         ctrl = {.RW, .RUN}
     }
 }
 
-fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    bus.addr = cpu.pc
-    bus.ctrl += {.SYNC, .RW}
-}
 
 tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
     if .RUN not_in bus.ctrl do return
@@ -62,8 +59,8 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
 }
 
 set_nz :: proc(cpu: ^MOS6502, val: u8) {
-    set_flag(cpu, .Zero, val == 0)
-    set_flag(cpu, .Negative, val & 0x80 != 0)
+    cpu.p.zero = val == 0
+    cpu.p.negative = val & 0x80 != 0
 }
 
 reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
@@ -74,29 +71,8 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: bus.addr = RESET_VECTOR; cpu.sp -= 1
     case 4: cpu.pc = u16(bus.data); bus.addr += 1
     case 5: cpu.pc |= u16(bus.data) << 8
-    case 6: cpu.in_reset = false; fetch(cpu, bus)
+    case 6: cpu.in_reset = false; _sync(cpu, bus)
     }
-}
-
-set_flag :: proc {
-    set_flag_,
-    set_flag_cond,
-}
-
-set_flag_ :: proc(cpu: ^MOS6502, flag: Status_Flag) {
-    cpu.p += {flag}
-}
-
-set_flag_cond :: proc(cpu: ^MOS6502, flag: Status_Flag, cond: bool) {
-    if cond {
-        cpu.p += {flag}
-    } else {
-        cpu.p -= {flag}
-    }
-}
-
-clear_flag :: proc(cpu: ^MOS6502, flag: Status_Flag) {
-    cpu.p -= {flag}
 }
 
 Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
@@ -107,13 +83,16 @@ init_instruction_table :: proc() {
     OP[0x38] = sec
     OP[0x46] = lsr_zp
     OP[0x4A] = lsr_acc
+    OP[0x4E] = lsr_abs
     OP[0x56] = lsr_zpx
     OP[0x58] = cli
+    OP[0x68] = pla
     OP[0x78] = sei
     OP[0x81] = sta_indx
     OP[0x84] = sty_zp
     OP[0x85] = sta_zp
     OP[0x86] = stx_zp
+    OP[0x8A] = txa
     OP[0x8C] = sty_abs
     OP[0x8D] = sta_abs
     OP[0x8E] = stx_abs
@@ -121,7 +100,9 @@ init_instruction_table :: proc() {
     OP[0x94] = sty_zpx
     OP[0x95] = sta_zpx
     OP[0x96] = stx_zpy
+    OP[0x98] = tya
     OP[0x99] = sta_absy
+    OP[0x9A] = txs
     OP[0x9D] = sta_absx
     OP[0xA0] = ldy_imm
     OP[0xA1] = lda_indx
@@ -129,7 +110,9 @@ init_instruction_table :: proc() {
     OP[0xA4] = ldy_zp
     OP[0xA5] = lda_zp
     OP[0xA6] = ldx_zp
+    OP[0xA8] = tay
     OP[0xA9] = lda_imm
+    OP[0xAA] = tax
     OP[0xAC] = ldy_abs
     OP[0xAD] = lda_abs
     OP[0xAE] = ldx_abs
@@ -138,6 +121,7 @@ init_instruction_table :: proc() {
     OP[0xB5] = lda_zpx
     OP[0xB6] = ldx_zpy
     OP[0xB9] = lda_absy
+    OP[0xBA] = tsx
     OP[0xBC] = ldy_absx
     OP[0xBD] = lda_absx
     OP[0xBE] = ldx_absy

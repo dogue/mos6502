@@ -7,15 +7,15 @@ _fetch_zp_addr :: proc {
     _fetch_zp_addr_indexed,
 }
 
-// caches the read zero page address and sets the address bus to it
+// reads and caches a zero page address and sets it on the address bus
 _fetch_zp_addr_base :: proc(cpu: ^MOS6502, bus: ^Bus) {
     cpu.addr = u16(bus.data)
     bus.addr = cpu.addr
 }
 
-// same as _set_zp_addr_base but with an offset value
-_fetch_zp_addr_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, offset: u8) {
-    cpu.addr = u16(u8(cpu.addr) + offset)
+// same as _set_zp_addr_base but with an index value
+_fetch_zp_addr_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, index: u8) {
+    cpu.addr = u16(u8(cpu.addr) + index)
     bus.addr = cpu.addr
 }
 
@@ -23,7 +23,7 @@ _fetch_zp_addr_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, offset: u8) {
 /*** Absolute addressing - <OP> abs ***/
 
 _fetch_abs_lo :: proc(cpu: ^MOS6502, bus: ^Bus) {
-    _next_pc(cpu, bus)
+    _fetch(cpu, bus)
     cpu.addr = u16(bus.data)
 }
 
@@ -37,10 +37,10 @@ _fetch_abs_hi_base :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.addr = cpu.addr
 }
 
-_fetch_abs_hi_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, offset: u8) -> (page_crossed: bool) {
+_fetch_abs_hi_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, index: u8) -> (page_crossed: bool) {
     cpu.addr |= u16(bus.data) << 8
     base_lo := u8(cpu.addr)
-    al := base_lo + offset
+    al := base_lo + index
     ah := u8(cpu.addr >> 8)
     bus.addr = u16(ah) << 8 | u16(al)
 

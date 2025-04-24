@@ -213,7 +213,7 @@ test_lsr_acc :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0b01001100)
-    testing.expect(t, .Carry in cpu.p)
+    testing.expect(t, cpu.p.carry)
 }
 
 @(test)
@@ -234,7 +234,7 @@ test_lsr_zp :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, mem[0x69], 0b01001100)
-    testing.expect(t, .Carry in cpu.p)
+    testing.expect(t, cpu.p.carry)
 }
 
 @(test)
@@ -256,5 +256,5 @@ test_lsr_zpx :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, mem[0x69], 0b01001100)
-    testing.expect(t, .Carry in cpu.p)
+    testing.expect(t, cpu.p.carry)
 }
