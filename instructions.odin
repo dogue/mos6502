@@ -71,7 +71,7 @@ lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $4A
 lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _fetch(cpu, bus)
+    case 0: _read(cpu, bus)
     case 1:
         cpu.p.carry = cpu.a & 1 == 1
         cpu.a >>= 1
@@ -121,7 +121,7 @@ lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $58
 cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _fetch(cpu, bus)
+    case 0: _read(cpu, bus)
     case 1:
         cpu.p.interrupt_disable = false
         _sync(cpu, bus)
@@ -146,7 +146,7 @@ pla :: proc(cpu: ^MOS6502, bus: ^Bus) {
 // $78
 sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
-    case 0: _fetch(cpu, bus)
+    case 0: _read(cpu, bus)
     case 1:
         cpu.p.interrupt_disable = true
         _sync(cpu, bus)

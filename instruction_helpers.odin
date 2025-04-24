@@ -149,7 +149,7 @@ _store_reg_abs_indexed :: proc(cpu: ^MOS6502, bus: ^Bus, reg: u8, offset: u8) {
 
 _transfer_reg :: proc(cpu: ^MOS6502, bus: ^Bus, src: u8, dest: ^u8) {
     switch cpu.cycle {
-    case 0: _fetch(cpu, bus)
+    case 0: _read(cpu, bus)
     case 1:
         dest^ = src
         set_nz(cpu, dest^)
