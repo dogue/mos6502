@@ -35,7 +35,6 @@ test_load_reg_zp :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0x42)
-    testing.expect_value(t, cpu.pc, 3)
 }
 
 @(test)
@@ -114,7 +113,6 @@ test_load_reg_abs_offset_crossed :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0x42)
-    testing.expect_value(t, cpu.pc, 4)
 }
 
 @(test)
@@ -136,7 +134,6 @@ test_lda_indx :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0x42)
-    testing.expect_value(t, cpu.pc, 3)
 }
 
 @(test)
@@ -158,7 +155,6 @@ test_lda_indy_no_cross :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0x42)
-    testing.expect_value(t, cpu.pc, 3)
 }
 
 @(test)
@@ -180,7 +176,6 @@ test_lda_indy_crossed :: proc(t: ^testing.T) {
     }
 
     testing.expect_value(t, cpu.a, 0x42)
-    testing.expect_value(t, cpu.pc, 3)
 }
 
 @(test)

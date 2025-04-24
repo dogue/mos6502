@@ -34,7 +34,6 @@ init :: proc(cpu: ^MOS6502) -> Bus {
 
 fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.addr = cpu.pc
-    cpu.pc += 1
     bus.ctrl += {.SYNC, .RW}
 }
 
@@ -51,7 +50,9 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
         cpu.cycle = 0
         cpu.ir = OP[bus.data]
         bus.ctrl -= {.SYNC}
+        cpu.pc += 1
     }
+
 
 	if cpu.ir == nil {
 		fmt.panicf("unhandled opcode: $%2X at $%4X", bus.data, bus.addr)
@@ -77,12 +78,25 @@ reset :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
-set_flag :: proc(cpu: ^MOS6502, flag: Status_Flag, cond: bool) {
+set_flag :: proc {
+    set_flag_,
+    set_flag_cond,
+}
+
+set_flag_ :: proc(cpu: ^MOS6502, flag: Status_Flag) {
+    cpu.p += {flag}
+}
+
+set_flag_cond :: proc(cpu: ^MOS6502, flag: Status_Flag, cond: bool) {
     if cond {
         cpu.p += {flag}
     } else {
         cpu.p -= {flag}
     }
+}
+
+clear_flag :: proc(cpu: ^MOS6502, flag: Status_Flag) {
+    cpu.p -= {flag}
 }
 
 Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
