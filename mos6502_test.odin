@@ -258,3 +258,14 @@ test_lsr_zpx :: proc(t: ^testing.T) {
     testing.expect_value(t, mem[0x69], 0b01001100)
     testing.expect(t, cpu.p.carry)
 }
+
+@(test)
+test_rol_logic :: proc(t: ^testing.T) {
+    data_out, carry_out := _rol(0b10011001, false)
+    testing.expect(t, carry_out)
+    testing.expect_value(t, data_out, 0b00110010)
+
+    data_out, carry_out = _rol(0b01100110, true)
+    testing.expect(t, !carry_out)
+    testing.expect_value(t, data_out, 0b11001101)
+}

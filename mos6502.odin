@@ -79,9 +79,25 @@ Instruction :: #type proc(cpu: ^MOS6502, bus: ^Bus)
 OP: [256]Instruction
 @(init)
 init_instruction_table :: proc() {
+    OP[0x01] = ora_indx
+    OP[0x05] = ora_zp
+    OP[0x08] = php
+    OP[0x09] = ora_imm
+    OP[0x0D] = ora_abs
+    OP[0x11] = ora_indy
+    OP[0x15] = ora_zpx
     OP[0x18] = clc
+    OP[0x19] = ora_absy
+    OP[0x1D] = ora_absx
+    OP[0x26] = rol_zp
+    OP[0x28] = plp
+    OP[0x2A] = rol_acc
+    OP[0x2E] = rol_abs
+    OP[0x36] = rol_zpx
     OP[0x38] = sec
+    OP[0x3E] = rol_absx
     OP[0x46] = lsr_zp
+    OP[0x48] = pha
     OP[0x4A] = lsr_acc
     OP[0x4E] = lsr_abs
     OP[0x56] = lsr_zpx

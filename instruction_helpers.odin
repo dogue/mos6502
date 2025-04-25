@@ -199,7 +199,6 @@ _fetch :: proc(cpu: ^MOS6502, bus: ^Bus) {
     cpu.pc += 1
 }
 
-// dummy read
 _read :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.addr = cpu.pc
 }
@@ -207,4 +206,17 @@ _read :: proc(cpu: ^MOS6502, bus: ^Bus) {
 _sync :: proc(cpu: ^MOS6502, bus: ^Bus) {
     bus.addr = cpu.pc
     bus.ctrl += {.SYNC, .RW}
+}
+
+_rol :: proc(data_in: u8, carry_in: bool) -> (data_out: u8, carry_out: bool) {
+    bit7 := data_in & 0x80 >> 7
+    data_out = (data_in << 1) | u8(carry_in ? 1 : 0)
+    carry_out = bit7 == 1
+    return data_out, carry_out
+}
+
+// start of read-modify-write part of an instruction
+_begin_rmw :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    cpu.addr = u16(bus.data)
+    _set_write(bus)
 }
