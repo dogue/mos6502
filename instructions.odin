@@ -334,6 +334,22 @@ cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $66
+ror_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _begin_rmw(cpu, bus)
+    case 3:
+        data := u8(cpu.addr)
+        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 4: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $68
 pla :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -348,6 +364,52 @@ pla :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $6A
+ror_acc :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.a, cpu.p.carry = _ror(cpu.a, cpu.p.carry)
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $6E
+ror_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus)
+    case 3: _begin_rmw(cpu, bus)
+    case 4:
+        data := u8(cpu.addr)
+        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $76
+ror_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, cpu.x)
+    case 3: _begin_rmw(cpu, bus)
+    case 4:
+        data := u8(cpu.addr)
+        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $78
 sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -355,6 +417,24 @@ sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1:
         cpu.p.interrupt_disable = true
         _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $7E
+ror_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus, cpu.x)
+    case 3: _adjust_addr(cpu, bus, cpu.x)
+    case 4: _begin_rmw(cpu, bus)
+    case 5:
+        data := u8(cpu.addr)
+        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 6: _sync(cpu, bus)
     case: unreachable()
     }
 }

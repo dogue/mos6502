@@ -215,6 +215,13 @@ _rol :: proc(data_in: u8, carry_in: bool) -> (data_out: u8, carry_out: bool) {
     return data_out, carry_out
 }
 
+_ror :: proc(data_in: u8, carry_in: bool) -> (data_out: u8, carry_out: bool) {
+    bit0 := data_in & 1
+    data_out = (data_in >> 1) | u8(carry_in ? 1 : 0) << 7
+    carry_out = bit0 == 1
+    return data_out, carry_out
+}
+
 // start of read-modify-write part of an instruction
 _begin_rmw :: proc(cpu: ^MOS6502, bus: ^Bus) {
     cpu.addr = u16(bus.data)
