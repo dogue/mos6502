@@ -939,10 +939,78 @@ ldx_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_abs(cpu, bus, &cpu.x, cpu.y)
 }
 
+// $E6
+inc_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _begin_rmw(cpu, bus)
+    case 3:
+        data := u8(cpu.addr)
+        data += 1
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 4: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $EA
 nop :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1: _sync(cpu, bus)
+    }
+}
+
+// $EE
+inc_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus)
+    case 3: _begin_rmw(cpu, bus)
+    case 4:
+        data := u8(cpu.addr)
+        data += 1
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $F6
+inc_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, cpu.x)
+    case 3: _begin_rmw(cpu, bus)
+    case 4:
+        data := u8(cpu.addr)
+        data += 1
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $FE
+inc_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus, cpu.x)
+    case 3: _adjust_addr(cpu, bus, cpu.x)
+    case 4: _begin_rmw(cpu, bus)
+    case 5:
+        data := u8(cpu.addr)
+        data += 1
+        set_nz(cpu, data)
+        _write(bus, data)
+    case 6: _sync(cpu, bus)
+    case: unreachable()
     }
 }
