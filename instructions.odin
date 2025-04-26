@@ -740,6 +740,18 @@ stx_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _store_reg_zp(cpu, bus, cpu.x)
 }
 
+// $88
+dey :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.y -= 1
+        set_nz(cpu, cpu.y)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $8A
 txa :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _transfer_reg(cpu, bus, cpu.x, &cpu.a)
@@ -962,6 +974,18 @@ iny :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1:
         cpu.y += 1
         set_nz(cpu, cpu.y)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $CA
+dex :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.x -= 1
+        set_nz(cpu, cpu.x)
         _sync(cpu, bus)
     case: unreachable()
     }
