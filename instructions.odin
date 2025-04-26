@@ -1011,6 +1011,17 @@ ldx_zpy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_zp(cpu, bus, &cpu.x, cpu.y)
 }
 
+// $B8
+clv :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.p.overflow = false
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $B9
 lda_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_abs(cpu, bus, &cpu.a, cpu.y)
@@ -1110,6 +1121,17 @@ dec_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $D8
+cld :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.p.decimal = false
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $DE
 dec_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -1194,6 +1216,17 @@ inc_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
         set_nz(cpu, data)
         _write(bus, data)
     case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $F8
+sed :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.p.decimal = true
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
