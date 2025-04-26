@@ -939,6 +939,18 @@ ldx_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
     _load_reg_abs(cpu, bus, &cpu.x, cpu.y)
 }
 
+// $C8
+iny :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.y += 1
+        set_nz(cpu, cpu.y)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $E6
 inc_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -951,6 +963,18 @@ inc_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
         set_nz(cpu, data)
         _write(bus, data)
     case 4: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $E8
+inx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _read(cpu, bus)
+    case 1:
+        cpu.x += 1
+        set_nz(cpu, cpu.x)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
