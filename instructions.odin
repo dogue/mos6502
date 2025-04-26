@@ -12,7 +12,7 @@ ora_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _fetch_indx_ptr_hi(cpu, bus)
     case 4: _compute_indx_addr(cpu, bus)
     case 5:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -25,7 +25,7 @@ ora_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -47,7 +47,7 @@ ora_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _fetch(cpu, bus)
     case 1:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -61,7 +61,7 @@ ora_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1: _fetch_abs_lo(cpu, bus)
     case 2: _fetch_abs_hi(cpu, bus)
     case 3:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -79,7 +79,7 @@ ora_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
         if !page_crossed do cpu.cycle += 1
     case 4: _adjust_addr(cpu, bus, cpu.y)
     case 5:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -93,7 +93,7 @@ ora_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1: _fetch_zp_addr(cpu, bus)
     case 2: _fetch_zp_addr(cpu, bus, cpu.x)
     case 3:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -121,7 +121,7 @@ ora_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
         if !page_crossed do cpu.cycle += 1
     case 3: _adjust_addr(cpu, bus, cpu.y)
     case 4:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -138,7 +138,7 @@ ora_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
         if !page_crossed do cpu.cycle += 1
     case 3: _adjust_addr(cpu, bus, cpu.x)
     case 4:
-        cpu.a ~= bus.data
+        cpu.a |= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -370,6 +370,35 @@ rol_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $41
+eor_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_indx_ptr_lo(cpu, bus)
+    case 3: _fetch_indx_ptr_hi(cpu, bus)
+    case 4: _compute_indx_addr(cpu, bus)
+    case 5:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $45
+eor_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $46
 lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -398,6 +427,18 @@ pha :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $49
+eor_imm :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $4A
 lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -405,6 +446,20 @@ lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     case 1:
         cpu.p.carry = cpu.a & 1 == 1
         cpu.a >>= 1
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $4D
+eor_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus)
+    case 3:
+        cpu.a ~= bus.data
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -423,6 +478,38 @@ lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
         cpu.addr >>= 1
         set_nz(cpu, u8(cpu.addr))
     case 5: _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $51
+eor_indy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_indy_ptr_lo(cpu, bus)
+    case 2: _fetch_indy_ptr_hi(cpu, bus)
+    case 3:
+        page_crossed := _compute_indy_addr(cpu, bus)
+        if !page_crossed do cpu.cycle += 1
+    case 4: _adjust_addr(cpu, bus, cpu.y)
+    case 5:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $55
+eor_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2: _fetch_zp_addr(cpu, bus, cpu.x)
+    case 3:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
     case: unreachable()
     }
 }
@@ -450,6 +537,40 @@ cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 0: _read(cpu, bus)
     case 1:
         cpu.p.interrupt_disable = false
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $59
+eor_absy :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2:
+        page_crossed := _fetch_abs_hi(cpu, bus, cpu.y)
+        if !page_crossed do cpu.cycle += 1
+    case 3: _adjust_addr(cpu, bus, cpu.y)
+    case 4:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $5D
+eor_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2:
+        page_crossed := _fetch_abs_hi(cpu, bus, cpu.x)
+        if !page_crossed do cpu.cycle += 1
+    case 3: _adjust_addr(cpu, bus, cpu.x)
+    case 4:
+        cpu.a ~= bus.data
+        set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
     }
