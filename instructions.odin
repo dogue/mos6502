@@ -161,6 +161,20 @@ and_indx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     }
 }
 
+// $24
+bit_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_zp_addr(cpu, bus)
+    case 2:
+        cpu.p.zero = (cpu.a & bus.data) == 0
+        cpu.p.overflow = bus.data & (1 << 6) != 0
+        cpu.p.negative = bus.data & (1 << 7) != 0
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
 // $25
 and_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
@@ -222,6 +236,21 @@ rol_acc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1:
         cpu.a, cpu.p.carry = _rol(cpu.a, cpu.p.carry)
         set_nz(cpu, cpu.a)
+        _sync(cpu, bus)
+    case: unreachable()
+    }
+}
+
+// $2C
+bit_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
+    switch cpu.cycle {
+    case 0: _fetch(cpu, bus)
+    case 1: _fetch_abs_lo(cpu, bus)
+    case 2: _fetch_abs_hi(cpu, bus)
+    case 3:
+        cpu.p.zero = (cpu.a & bus.data) == 0
+        cpu.p.overflow = bus.data & (1 << 6) != 0
+        cpu.p.negative = bus.data & (1 << 7) != 0
         _sync(cpu, bus)
     case: unreachable()
     }
