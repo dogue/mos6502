@@ -87,3 +87,7 @@ _compute_indy_addr :: proc(cpu: ^MOS6502, bus: ^Bus) -> (page_crossed: bool) {
 _adjust_addr :: proc(cpu: ^MOS6502, bus: ^Bus, offset: u8) {
     bus.addr = cpu.addr + u16(offset)
 }
+
+_is_bit_set :: proc(n: u8, bit: uint) -> bool {
+    return n & (1 << bit) != 0
+}
