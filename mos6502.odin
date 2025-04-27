@@ -4,16 +4,17 @@ import "core:fmt"
 
 RESET_VECTOR :: 0xFFFC
 
-Status_Flags :: bit_field u8 {
-    carry: bool | 1,
-    zero: bool | 1,
-    interrupt_disable: bool | 1,
-    decimal: bool | 1,
-    brk: bool | 1,
-    unused: bool | 1,
-    overflow: bool | 1,
-    negative: bool | 1,
+Status_Flag :: enum u8 {
+    Carry,
+    Zero,
+    Interrupt_Disable,
+    Decimal,
+    Break,
+    Always_One,
+    Overflow,
+    Negative,
 }
+Status_Flags :: bit_set[Status_Flag; u8]
 
 MOS6502 :: struct {
 	a, x, y, sp: u8,
@@ -27,7 +28,7 @@ MOS6502 :: struct {
 
 init :: proc(cpu: ^MOS6502) -> Bus {
     cpu.in_reset = true
-    cpu.p.unused = true // always pushed as 1
+    cpu.p += {.Always_One} // unused status bit, always pushed as 1
     return Bus {
         ctrl = {.RW, .RUN}
     }
@@ -58,9 +59,30 @@ tick :: proc(cpu: ^MOS6502, bus: ^Bus) {
 	cpu->ir(bus)
 }
 
+set_flag :: proc {
+    set_flag_uncond,
+    set_flag_cond,
+}
+
+set_flag_uncond :: proc(cpu: ^MOS6502, flag: Status_Flag) {
+    cpu.p += {flag}
+}
+
+set_flag_cond :: proc(cpu: ^MOS6502, flag: Status_Flag, cond: bool) {
+    if cond {
+        set_flag(cpu, flag)
+    } else {
+        clear_flag(cpu, flag)
+    }
+}
+
+clear_flag :: proc(cpu: ^MOS6502, flag: Status_Flag) {
+    cpu.p -= {flag}
+}
+
 set_nz :: proc(cpu: ^MOS6502, val: u8) {
-    cpu.p.zero = val == 0
-    cpu.p.negative = val & 0x80 != 0
+    set_flag(cpu, .Zero, val == 0)
+    set_flag(cpu, .Negative, val & 0x80 != 0)
 }
 
 reset :: proc(cpu: ^MOS6502, bus: ^Bus) {

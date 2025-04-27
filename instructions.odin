@@ -40,7 +40,7 @@ asl_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _begin_rmw(cpu, bus)
     case 3:
         data := u8(cpu.addr)
-        cpu.p.carry = _is_bit_set(data, 7)
+        set_flag(cpu, .Carry, (data & 0x80) != 0)
         data <<= 1
         set_nz(cpu, data)
         _write(bus, data)
@@ -53,7 +53,7 @@ asl_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
 php :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
-    case 1: _write_stack(cpu, bus, u8(cpu.p))
+    case 1: _write_stack(cpu, bus, transmute(u8)(cpu.p))
     case 2: _sync(cpu, bus)
     case: unreachable()
     }
@@ -76,7 +76,7 @@ asl_acc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.carry = cpu.a & (1 << 7) != 0
+        set_flag(cpu, .Carry, (cpu.a & 0x80) != 0)
         cpu.a <<= 1
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
@@ -107,7 +107,7 @@ asl_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        cpu.p.carry = _is_bit_set(data, 7)
+        set_flag(cpu, .Carry, (data & 0x80) != 0)
         data <<= 1
         set_nz(cpu, data)
         _write(bus, data)
@@ -157,7 +157,7 @@ asl_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        cpu.p.carry = _is_bit_set(data, 7)
+        set_flag(cpu, .Carry, (data & 0x80) != 0)
         data <<= 1
         set_nz(cpu, data)
         _write(bus, data)
@@ -171,7 +171,7 @@ clc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _fetch(cpu, bus)
     case 1:
-        cpu.p.carry = false
+        clear_flag(cpu, .Carry)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -221,7 +221,7 @@ asl_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 4: _begin_rmw(cpu, bus)
     case 5:
         data := u8(cpu.addr)
-        cpu.p.carry = _is_bit_set(data, 7)
+        set_flag(cpu, .Carry, (data & 0x80) != 0)
         data <<= 1
         set_nz(cpu, data)
         _write(bus, data)
@@ -252,9 +252,9 @@ bit_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 0: _fetch(cpu, bus)
     case 1: _fetch_zp_addr(cpu, bus)
     case 2:
-        cpu.p.zero = (cpu.a & bus.data) == 0
-        cpu.p.overflow = bus.data & (1 << 6) != 0
-        cpu.p.negative = bus.data & (1 << 7) != 0
+        set_flag(cpu, .Zero, (cpu.a & bus.data) == 0)
+        set_flag(cpu, .Overflow, (bus.data & (1 << 6)) != 0)
+        set_flag(cpu, .Negative, (bus.data & (1 << 7)) != 0)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -281,7 +281,9 @@ rol_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _begin_rmw(cpu, bus)
     case 3:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _rol(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _rol(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 4: _sync(cpu, bus)
@@ -296,7 +298,7 @@ plp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1: _pull_stack(cpu, bus)
     case 2: _read_stack(cpu, bus)
     case 3:
-        cpu.p = Status_Flags(bus.data)
+        cpu.p = transmute(Status_Flags)(bus.data)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -319,7 +321,11 @@ rol_acc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.a, cpu.p.carry = _rol(cpu.a, cpu.p.carry)
+        data := cpu.a
+        carry := .Carry in cpu.p
+        data, carry = _rol(data, carry)
+        cpu.a = data
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -333,9 +339,9 @@ bit_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 1: _fetch_abs_lo(cpu, bus)
     case 2: _fetch_abs_hi(cpu, bus)
     case 3:
-        cpu.p.zero = (cpu.a & bus.data) == 0
-        cpu.p.overflow = bus.data & (1 << 6) != 0
-        cpu.p.negative = bus.data & (1 << 7) != 0
+        set_flag(cpu, .Zero, (cpu.a & bus.data) == 0)
+        set_flag(cpu, .Overflow, (bus.data & (1 << 6)) != 0)
+        set_flag(cpu, .Negative, (bus.data & (1 << 7)) != 0)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -364,7 +370,9 @@ rol_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _rol(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _rol(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 5: _sync(cpu, bus)
@@ -413,7 +421,9 @@ rol_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _rol(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _rol(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 5: _sync(cpu, bus)
@@ -426,7 +436,7 @@ sec :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _fetch(cpu, bus)
     case 1:
-        cpu.p.carry = true
+        set_flag(cpu, .Carry)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -476,7 +486,9 @@ rol_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 4: _begin_rmw(cpu, bus)
     case 5:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _rol(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _rol(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 6: _sync(cpu, bus)
@@ -521,7 +533,7 @@ lsr_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _begin_rmw(cpu, bus)
     case 3:
         data := u8(cpu.addr)
-        cpu.p.carry = data & 1 == 1
+        set_flag(cpu, .Carry, (data & 1) == 1)
         data >>= 1
         set_nz(cpu, data)
         bus.data = data
@@ -558,7 +570,7 @@ lsr_acc :: proc(cpu :^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.carry = cpu.a & 1 == 1
+        set_flag(cpu, .Carry, (cpu.a & 1) == 1)
         cpu.a >>= 1
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
@@ -588,7 +600,7 @@ lsr_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _fetch_abs_hi(cpu, bus)
     case 3: _begin_rmw(cpu, bus)
     case 4:
-        cpu.p.carry = cpu.addr & 1 == 1
+        set_flag(cpu, .Carry, (cpu.addr & 1) == 1)
         cpu.addr >>= 1
         set_nz(cpu, u8(cpu.addr))
     case 5: _sync(cpu, bus)
@@ -636,7 +648,7 @@ lsr_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _fetch_zp_addr(cpu, bus, cpu.x)
     case 3: _begin_rmw(cpu, bus)
     case 4:
-        cpu.p.carry = cpu.addr & 1 == 1
+        set_flag(cpu, .Carry, (cpu.addr & 1) == 1)
         cpu.addr >>= 1
         set_nz(cpu, u8(cpu.addr))
         _write(bus, u8(cpu.addr))
@@ -650,7 +662,7 @@ cli :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.interrupt_disable = false
+        clear_flag(cpu, .Interrupt_Disable)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -698,7 +710,9 @@ ror_zp :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 2: _begin_rmw(cpu, bus)
     case 3:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _ror(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 4: _sync(cpu, bus)
@@ -725,7 +739,11 @@ ror_acc :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.a, cpu.p.carry = _ror(cpu.a, cpu.p.carry)
+        data := cpu.a
+        carry := .Carry in cpu.p
+        data, carry = _ror(data, carry)
+        cpu.a = data
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, cpu.a)
         _sync(cpu, bus)
     case: unreachable()
@@ -741,7 +759,9 @@ ror_abs :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _ror(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 5: _sync(cpu, bus)
@@ -758,7 +778,9 @@ ror_zpx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 3: _begin_rmw(cpu, bus)
     case 4:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _ror(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 5: _sync(cpu, bus)
@@ -771,7 +793,7 @@ sei :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.interrupt_disable = true
+        set_flag(cpu, .Interrupt_Disable)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -787,7 +809,9 @@ ror_absx :: proc(cpu: ^MOS6502, bus: ^Bus) {
     case 4: _begin_rmw(cpu, bus)
     case 5:
         data := u8(cpu.addr)
-        data, cpu.p.carry = _ror(data, cpu.p.carry)
+        carry := .Carry in cpu.p
+        data, carry = _ror(data, carry)
+        set_flag(cpu, .Carry, carry)
         set_nz(cpu, data)
         _write(bus, data)
     case 6: _sync(cpu, bus)
@@ -1016,7 +1040,7 @@ clv :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.overflow = false
+        clear_flag(cpu, .Overflow)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -1126,7 +1150,7 @@ cld :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.decimal = false
+        clear_flag(cpu, .Decimal)
         _sync(cpu, bus)
     case: unreachable()
     }
@@ -1225,7 +1249,7 @@ sed :: proc(cpu: ^MOS6502, bus: ^Bus) {
     switch cpu.cycle {
     case 0: _read(cpu, bus)
     case 1:
-        cpu.p.decimal = true
+        set_flag(cpu, .Decimal)
         _sync(cpu, bus)
     case: unreachable()
     }
